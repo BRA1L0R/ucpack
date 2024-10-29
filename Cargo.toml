@@ -1,0 +1,15 @@
+[package]
+name = "ucpack"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+std = []
+
+[[test]]
+name = "std"
+required-features = ["std"]
+
+[dependencies]
+serde = { version = "1.0.214", default-features = false, features = ["derive"] }
