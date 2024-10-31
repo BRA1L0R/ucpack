@@ -3,29 +3,29 @@ use core::fmt::Display;
 use serde::ser;
 use serde::ser::Impossible;
 
-use crate::{buffer::Buffer, unimpl, UcPackError};
+use crate::{buffer::WriteBuffer, unimpl, UcPackError};
 
-pub struct Serializer<B: Buffer> {
+pub(crate) struct Serializer<B: WriteBuffer> {
     buffer: B,
 }
 
-impl<B: Buffer> Serializer<B> {
+impl<B: WriteBuffer> Serializer<B> {
     pub(crate) fn new(buffer: B) -> Serializer<B> {
         Self { buffer }
     }
 }
 
-impl<'a, B: Buffer> ser::Serializer for &'a mut Serializer<B> {
+impl<'a, B: WriteBuffer> ser::Serializer for &'a mut Serializer<B> {
     type Ok = ();
     type Error = UcPackError;
 
     type SerializeSeq = Impossible<(), UcPackError>;
     type SerializeTuple = Self;
     type SerializeTupleStruct = Self;
-    type SerializeTupleVariant = Impossible<(), UcPackError>;
+    type SerializeTupleVariant = Self;
     type SerializeMap = Impossible<(), UcPackError>;
     type SerializeStruct = Self;
-    type SerializeStructVariant = Impossible<(), UcPackError>;
+    type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         self.serialize_u8(v as u8)
@@ -72,7 +72,7 @@ impl<'a, B: Buffer> ser::Serializer for &'a mut Serializer<B> {
     where
         T: ?Sized + Display,
     {
-        self.serialize_str("")
+        unimpl!(name = "string")
     }
 
     fn serialize_some<T>(self, _: &T) -> Result<Self::Ok, Self::Error>
@@ -107,15 +107,17 @@ impl<'a, B: Buffer> ser::Serializer for &'a mut Serializer<B> {
 
     fn serialize_newtype_variant<T>(
         self,
-        name: &'static str,
-        _: u32,
         _: &'static str,
-        _: &T,
+        idx: u32,
+        _: &'static str,
+        obj: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + ser::Serialize,
     {
-        unimpl!(name = name)
+        let idx = u8::try_from(idx).map_err(|_| UcPackError::BadVariant)?;
+        self.serialize_u8(idx)?;
+        obj.serialize(self)
     }
 
     fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
@@ -136,12 +138,14 @@ impl<'a, B: Buffer> ser::Serializer for &'a mut Serializer<B> {
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        _: u32,
+        _: &'static str,
+        idx: u32,
         _: &'static str,
         _: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        unimpl!(name = name)
+        let idx = u8::try_from(idx).map_err(|_| UcPackError::BadVariant)?;
+        self.serialize_u8(idx)?;
+        Ok(self)
     }
 
     fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
@@ -159,15 +163,15 @@ impl<'a, B: Buffer> ser::Serializer for &'a mut Serializer<B> {
     fn serialize_struct_variant(
         self,
         name: &'static str,
-        _: u32,
-        _: &'static str,
-        _: usize,
+        idx: u32,
+        variant: &'static str,
+        len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        unimpl!(name = name);
+        self.serialize_tuple_variant(name, idx, variant, len)
     }
 }
 
-impl<'a, B: Buffer> ser::SerializeTuple for &'a mut Serializer<B> {
+impl<'a, B: WriteBuffer> ser::SerializeTuple for &'a mut Serializer<B> {
     type Ok = ();
     type Error = UcPackError;
 
@@ -183,7 +187,7 @@ impl<'a, B: Buffer> ser::SerializeTuple for &'a mut Serializer<B> {
     }
 }
 
-impl<'a, B: Buffer> ser::SerializeStruct for &'a mut Serializer<B> {
+impl<'a, B: WriteBuffer> ser::SerializeStruct for &'a mut Serializer<B> {
     type Ok = ();
     type Error = UcPackError;
 
@@ -199,11 +203,44 @@ impl<'a, B: Buffer> ser::SerializeStruct for &'a mut Serializer<B> {
     }
 }
 
-impl<'a, B: Buffer> ser::SerializeTupleStruct for &'a mut Serializer<B> {
+impl<'a, B: WriteBuffer> ser::SerializeTupleStruct for &'a mut Serializer<B> {
     type Ok = ();
     type Error = UcPackError;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(())
+    }
+}
+
+impl<'a, B: WriteBuffer> ser::SerializeTupleVariant for &'a mut Serializer<B> {
+    type Ok = ();
+    type Error = UcPackError;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(())
+    }
+}
+
+impl<'a, B: WriteBuffer> ser::SerializeStructVariant for &'a mut Serializer<B> {
+    type Ok = ();
+
+    type Error = UcPackError;
+
+    fn serialize_field<T>(&mut self, _: &'static str, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + ser::Serialize,
     {
