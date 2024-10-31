@@ -28,9 +28,7 @@ fn main() {
 ```
 
 ### The protocol
-
-> [!NOTE]
-> _Table gently borrowed from ucpack's c++ repo_
+_NOTE: Table gently borrowed from ucpack's c++ repo_
 
 A packet is managed as:
 
