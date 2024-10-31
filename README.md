@@ -1,4 +1,4 @@
-# `ucpack`
+# `ucpack` ![docs.rs](https://img.shields.io/docsrs/ucpack?style=flat&label=docs.rs&color=%23B7410E)
 
 <div align="right" style="display: block; float: right; margin-left: 20px;">
     <img style="width: 180px" align="right" src="./assets/alvik.webp" onerror="this.src='../../../assets/alvik.webp'" />
