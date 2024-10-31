@@ -1,5 +1,7 @@
 [package]
 name = "ucpack"
+description = "Rust implementation of the ucpack serialization format used in the Arduino Alvik"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
