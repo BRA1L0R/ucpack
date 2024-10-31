@@ -19,7 +19,7 @@ impl<B: ReadBuffer> Deserializer<B> {
 impl<'de, 'a, B: ReadBuffer> de::Deserializer<'de> for &'a mut Deserializer<B> {
     type Error = UcPackError;
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_any<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -84,7 +84,7 @@ impl<'de, 'a, B: ReadBuffer> de::Deserializer<'de> for &'a mut Deserializer<B> {
     unimpl_de!(deserialize_f64, f64);
     unimpl_de!(deserialize_char, char);
     unimpl_de!(deserialize_str, &str);
-    unimpl_de!(deserialize_string, String);
+    unimpl_de!(deserialize_string, name = "String");
     unimpl_de!(deserialize_bytes, &[u8]);
     unimpl_de!(deserialize_byte_buf, name = "byte_buf");
     unimpl_de!(deserialize_option, name = "option");
@@ -133,7 +133,7 @@ impl<'de, 'a, B: ReadBuffer> de::Deserializer<'de> for &'a mut Deserializer<B> {
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
+        _: &'static str,
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>

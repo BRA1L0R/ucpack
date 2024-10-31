@@ -54,7 +54,7 @@ impl serde::ser::Error for UcPackError {
 }
 
 impl serde::de::Error for UcPackError {
-    fn custom<T>(msg: T) -> Self
+    fn custom<T>(_msg: T) -> Self
     where
         T: Display,
     {
