@@ -51,17 +51,3 @@ fn test_serialize_deserialize() {
 
     assert_eq!(PAYLOAD, deserialized);
 }
-
-// #[test]
-// fn test_enum() {
-//     #[derive(Serialize)]
-//     enum Test {
-//         Command2(u8),
-//         Command1 { a: u16, b: u8 },
-//     }
-
-//     let ucpack = UcPack::default();
-
-//     let res = ucpack.serialize_vec(&Test::Command2(1)).unwrap();
-//     panic!("{res:?}");
-// }

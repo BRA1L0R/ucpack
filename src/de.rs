@@ -1,13 +1,15 @@
 use serde::de::{self, EnumAccess, IntoDeserializer, SeqAccess, VariantAccess};
 
-use crate::{buffer::ReadBuffer, unimpl, unimpl_de, UcPackError};
+use crate::{buffer::ReadBuffer, macros::unimpl, macros::unimpl_de, UcPackError};
 
-pub(crate) struct Deserializer<B: ReadBuffer> {
+/// A `serde` compatible Deserializer which works
+/// on a [ReadBuffer]
+pub struct Deserializer<B: ReadBuffer> {
     buffer: B,
 }
 
 impl<B: ReadBuffer> Deserializer<B> {
-    pub(crate) fn new(buffer: B) -> Self {
+    pub fn new(buffer: B) -> Self {
         Self { buffer }
     }
 

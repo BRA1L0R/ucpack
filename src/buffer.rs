@@ -2,20 +2,44 @@ use core::ops::{Deref, DerefMut};
 
 use crate::UcPackError;
 
-pub(crate) trait WriteBuffer {
+/// A writeable buffer. Implemented by cursor types.
+///
+/// You have to provide a method to copy &[u8] within.
+pub trait WriteBuffer {
     fn push_slice(&mut self, bf: &[u8]) -> Result<(), UcPackError>;
-    fn push_byte(&mut self, byte: u8) -> Result<(), UcPackError> {
+
+    #[inline]
+    fn push_u8(&mut self, byte: u8) -> Result<(), UcPackError> {
         self.push_slice(&[byte])
     }
 }
 
-pub(crate) trait ReadBuffer {
+/// A readable buffer. Implemented by cursor types.
+///
+/// You have to provide a method to copy-read N bytes from the buffer.
+pub trait ReadBuffer {
+    // reads N bytes from the buffer, advancing its internal state, returning a
+    // byte array of N bytes
     fn read_n<const N: usize>(&mut self) -> Result<[u8; N], UcPackError>;
+
+    #[inline]
     fn read_u8(&mut self) -> Result<u8, UcPackError> {
         self.read_n().map(|[a]| a)
     }
 }
 
+/// A cursor over a byte slice.
+///
+/// It implements [ReadBuffer] by default thanks to this bound:
+/// ```rs
+///     T: Deref<Target = [u8]>
+/// ```
+///
+/// However if the [WriteBuffer] implementation is required, the
+/// buffer type must abid this bound:
+/// ```rs
+///     T: DerefMut<Target = [u8]> // implies Deref<Target = [u8]>
+/// ```
 pub(crate) struct SliceCursor<T>
 where
     T: Deref<Target = [u8]>,
@@ -45,6 +69,7 @@ impl<'a, T> ReadBuffer for SliceCursor<T>
 where
     T: Deref<Target = [u8]>,
 {
+    #[inline]
     fn read_n<const N: usize>(&mut self) -> Result<[u8; N], UcPackError> {
         let a = self
             .buffer
@@ -56,20 +81,6 @@ where
         self.index += N;
 
         Ok(a)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{SliceCursor, WriteBuffer};
-
-    #[test]
-    fn full_err() {
-        let mut a = [0, 0, 0, 0, 0];
-        let mut cursor = SliceCursor::from_slice(&mut a[..]);
-
-        cursor.push_slice(&[1, 2, 3, 4, 5]).unwrap();
-        cursor.push_byte(1).unwrap_err();
     }
 }
 
@@ -105,8 +116,8 @@ impl<T: WriteBuffer> WriteBuffer for &mut T {
     }
 
     #[inline]
-    fn push_byte(&mut self, byte: u8) -> Result<(), UcPackError> {
-        (**self).push_byte(byte)
+    fn push_u8(&mut self, byte: u8) -> Result<(), UcPackError> {
+        (**self).push_u8(byte)
     }
 }
 
@@ -119,5 +130,19 @@ impl<T: ReadBuffer> ReadBuffer for &mut T {
     #[inline]
     fn read_n<const N: usize>(&mut self) -> Result<[u8; N], UcPackError> {
         (**self).read_n()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{SliceCursor, WriteBuffer};
+
+    #[test]
+    fn full_err() {
+        let mut a = [0, 0, 0, 0, 0];
+        let mut cursor = SliceCursor::from_slice(&mut a[..]);
+
+        cursor.push_slice(&[1, 2, 3, 4, 5]).unwrap();
+        cursor.push_u8(1).unwrap_err();
     }
 }

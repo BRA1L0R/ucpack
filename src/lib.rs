@@ -1,8 +1,10 @@
+#![doc = include_str!("../README.md")]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod buffer;
-mod de;
-mod ser;
+pub mod de;
+mod macros;
+pub mod ser;
 
 use core::fmt::Display;
 
@@ -10,16 +12,31 @@ use buffer::{SliceCursor, WriteBuffer};
 use serde::Deserialize;
 
 #[derive(Debug)]
+/// Error returned by the ucpack crate
 pub enum UcPackError {
+    /// Tried to serialize a variant index bigger than `255`.
     BadVariant,
+    /// The cursor does not have any more data to deserialize from.
     Eof,
+    /// Serialization / Deserialization of this type is not supported by the ucpack protocol.
+    /// If you think this is a mistake, please open an issue.
     NoSupport(&'static str),
+    /// Tried to serialize more than 256 bytes of payload data. This is a restriction
+    /// imposed by the protocol.
     TooLong,
+    /// Tried to serialize more bytes than the buffer could possible handle.
     BufferFull,
+    /// There was a serde error during serialization.
     SerError,
+    /// There was a serde error during deserialization.
     DeError,
+    /// Input data for deserialization has problems finding a representation in a given data format
+    ///
+    /// For example: a serialized boolean value ∉ {0, 1}
     InvalidData,
+    /// Received a message with a wrong/faulty crc. Probably indicates data corruption.
     WrongCrc,
+    /// Received a message containing wrong index/indices for the start and stop bytes.
     WrongIndex,
 }
 
@@ -63,45 +80,6 @@ impl serde::de::Error for UcPackError {
 }
 // impl core for UcPackError {}
 
-#[macro_export]
-macro_rules! unimpl {
-    (name = $name:expr) => {{
-        return Err(UcPackError::NoSupport($name));
-    }};
-
-    ($func:tt) => {
-        fn $func(self) -> Result<Self::Ok, Self::Error> {
-            Err(UcPackError::NoSupport(""))
-        }
-    };
-
-    ($func:ident, $type:ty) => {
-        fn $func(self, _: $type) -> Result<Self::Ok, Self::Error> {
-            Err(UcPackError::NoSupport(core::any::type_name::<$type>()))
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! unimpl_de {
-    ($func:ident, $type:ty) => {
-        fn $func<V>(self, _: V) -> Result<V::Value, Self::Error>
-        where
-            V: de::Visitor<'de>,
-        {
-            unimpl!(name = core::any::type_name::<$type>())
-        }
-    };
-    ($func:ident, name = $name:expr) => {
-        fn $func<V>(self, _: V) -> Result<V::Value, Self::Error>
-        where
-            V: de::Visitor<'de>,
-        {
-            unimpl!(name = $name)
-        }
-    };
-}
-
 /// UcPack structure
 pub struct UcPack {
     start_index: u8,
@@ -110,14 +88,18 @@ pub struct UcPack {
 
 impl Default for UcPack {
     fn default() -> Self {
-        Self {
-            start_index: b'A',
-            end_index: b'#',
-        }
+        Self::new(b'A', b'#')
     }
 }
 
 impl UcPack {
+    pub const fn new(start_index: u8, end_index: u8) -> Self {
+        Self {
+            start_index,
+            end_index,
+        }
+    }
+
     #[cfg(feature = "std")]
     pub fn serialize_vec(
         &self,
@@ -132,7 +114,7 @@ impl UcPack {
         buffer[1] = u8::try_from(data_end - 2).map_err(|_| UcPackError::TooLong)?;
 
         buffer.push(self.end_index);
-        buffer.push(crc8(&buffer[2..data_end]));
+        buffer.push(crc8_slice(&buffer[2..data_end]));
 
         Ok(buffer)
     }
@@ -149,7 +131,7 @@ impl UcPack {
         payload.serialize(&mut serializer)?;
 
         let data_end = cursor.index();
-        let crc = crc8(&cursor.inner()[2..data_end]);
+        let crc = crc8_slice(&cursor.inner()[2..data_end]);
         cursor.push_slice(&[self.end_index, crc])?;
 
         let total_size = cursor.index();
@@ -178,7 +160,7 @@ impl UcPack {
             return Err(UcPackError::WrongIndex);
         }
 
-        let expected_crc = crc8(payload);
+        let expected_crc = crc8_slice(payload);
         if expected_crc != *crc {
             return Err(UcPackError::WrongCrc);
         }
@@ -189,8 +171,15 @@ impl UcPack {
     }
 }
 
-pub fn crc8(input: &[u8]) -> u8 {
-    // let input = input.into_iter();
+/// Helper function to calculate crc8 over byte slices
+#[inline]
+pub fn crc8_slice(input: &[u8]) -> u8 {
+    crc8(input.into_iter().copied())
+}
+
+/// Calculates a CRC8 checksum over any `u8` iterator
+pub fn crc8(input: impl IntoIterator<Item = u8>) -> u8 {
+    let input = input.into_iter();
 
     input
         .into_iter()

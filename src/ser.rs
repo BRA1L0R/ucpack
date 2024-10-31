@@ -3,14 +3,14 @@ use core::fmt::Display;
 use serde::ser;
 use serde::ser::Impossible;
 
-use crate::{buffer::WriteBuffer, unimpl, UcPackError};
+use crate::{buffer::WriteBuffer, macros::unimpl, UcPackError};
 
-pub(crate) struct Serializer<B: WriteBuffer> {
+pub struct Serializer<B: WriteBuffer> {
     buffer: B,
 }
 
 impl<B: WriteBuffer> Serializer<B> {
-    pub(crate) fn new(buffer: B) -> Serializer<B> {
+    pub fn new(buffer: B) -> Serializer<B> {
         Self { buffer }
     }
 }
@@ -32,7 +32,7 @@ impl<'a, B: WriteBuffer> ser::Serializer for &'a mut Serializer<B> {
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
-        self.buffer.push_byte(v)
+        self.buffer.push_u8(v)
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
