@@ -1,8 +1,7 @@
 # `ucpack`
 
-<div style="display: block; float: right; margin-left: 20px;">
-<img style="width: 100px" src="./assets/alvik.webp" onerror="this.src='../../../assets/alvik.webp'"></img>
-<p>this cute little guy</p>
+<div align="right" style="display: block; float: right; margin-left: 20px;">
+    <img style="width: 180px" align="right" src="./assets/alvik.webp" onerror="this.src='../../../assets/alvik.webp'" />
 </div>
 
 Rust implementation of the ucpack serialization format used in the Arduino Alvik using [serde](https://docs.rs/serde).
