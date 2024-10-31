@@ -6,7 +6,7 @@
 
 Rust implementation of the ucpack serialization format used in the Arduino Alvik using [serde](https://docs.rs/serde).
 
-This crate does not implement the body protocol itself, but rather the binary serialization format it uses
+This crate does not implement the body API itself, but rather the binary protocol and format it uses
 to encode its messages.
 
 ### The crate
