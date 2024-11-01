@@ -61,6 +61,9 @@ impl Display for UcPackError {
     }
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for UcPackError {}
+
 impl serde::ser::Error for UcPackError {
     fn custom<T>(_: T) -> Self
     where

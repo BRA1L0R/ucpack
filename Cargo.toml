@@ -2,12 +2,12 @@
 name = "ucpack"
 description = "Rust implementation of the ucpack serialization format used in the Arduino Alvik"
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [features]
 default = ["strict", "std"]
-std = []
+std = ["serde/std"]
 strict = []
 
 [[test]]
