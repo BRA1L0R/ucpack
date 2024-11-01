@@ -145,13 +145,8 @@ impl UcPack {
         T: Deserialize<'d>,
         'b: 'd,
     {
-        let length = buffer
-            .get(1)
-            .ok_or(UcPackError::Eof)
-            .map(|&length| length as usize)?;
-
-        let packet = buffer.get(..(length + 4));
-        let Some([index, _, payload @ .., end_index, crc]) = packet else {
+        let packet = is_complete_message(buffer).ok_or(UcPackError::Eof)?;
+        let [index, _, payload @ .., end_index, crc] = packet else {
             return Err(UcPackError::Eof);
         };
 
@@ -169,6 +164,21 @@ impl UcPack {
         let mut de = de::Deserializer::new(&mut cursor);
         T::deserialize(&mut de)
     }
+}
+
+/// Check a buffer for a message. This method is useful during hardware interrupts,
+/// to check whether the received data is a readble message or more data has yet to arrive
+///
+/// Arguments:
+/// - `buffer`: this argument is NOT for the whole buffer to be passed in but
+/// rather the slice of the buffer containing the currently received information
+///
+/// Returns:
+/// - `Some`: a slice guaranteed to contain a message
+/// - `None`: a full message hasn't yet been received
+pub fn is_complete_message(buffer: &[u8]) -> Option<&[u8]> {
+    let length: usize = buffer.get(1).map(|&length| length.into())?;
+    buffer.get(..(length + 4))
 }
 
 /// Helper function to calculate crc8 over byte slices
