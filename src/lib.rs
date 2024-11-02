@@ -27,9 +27,15 @@ pub enum UcPackError {
     /// Tried to serialize more bytes than the buffer could possible handle.
     BufferFull,
     /// There was a serde error during serialization.
+    #[cfg(not(feature = "std"))]
     SerError,
+    #[cfg(feature = "std")]
+    SerError(String),
     /// There was a serde error during deserialization.
+    #[cfg(not(feature = "std"))]
     DeError,
+    #[cfg(feature = "std")]
+    DeError(String),
     /// Input data for deserialization has problems finding a representation in a given data format
     ///
     /// For example: a serialized boolean value ∉ {0, 1}
@@ -51,10 +57,23 @@ impl Display for UcPackError {
             Self::BadVariant => "tried to serialize a variant index bigger than 255",
             Self::TooLong => "tried to serialize more than 256 bytes",
             Self::BufferFull => "tried to write but buffer reached capacity",
-            Self::SerError => "serde encountered an error serializing",
-            Self::DeError => "serde encountered an error deserializing",
+
             Self::WrongCrc => "crc verification failed",
             Self::WrongIndex => "invalid start and/or stop indices",
+
+            #[cfg(not(feature = "std"))]
+            Self::SerError => "serde encountered an error serializing",
+            #[cfg(feature = "std")]
+            Self::SerError(err) => {
+                return write!(f, "serde encountered an error while serializing: {err}");
+            }
+
+            #[cfg(not(feature = "std"))]
+            Self::DeError => "serde encountered an error deserializing",
+            #[cfg(feature = "std")]
+            Self::DeError(err) => {
+                return write!(f, "serde encountered an error while deserializing: {err}");
+            }
         };
 
         f.write_str(msg)
@@ -65,11 +84,19 @@ impl Display for UcPackError {
 impl std::error::Error for UcPackError {}
 
 impl serde::ser::Error for UcPackError {
-    fn custom<T>(_: T) -> Self
+    fn custom<T>(_msg: T) -> Self
     where
         T: Display,
     {
-        Self::SerError
+        #[cfg(not(feature = "std"))]
+        {
+            Self::SerError
+        }
+
+        #[cfg(feature = "std")]
+        {
+            Self::SerError(_msg.to_string())
+        }
     }
 }
 
@@ -78,7 +105,15 @@ impl serde::de::Error for UcPackError {
     where
         T: Display,
     {
-        UcPackError::DeError
+        #[cfg(not(feature = "std"))]
+        {
+            Self::DeError
+        }
+
+        #[cfg(feature = "std")]
+        {
+            Self::DeError(_msg.to_string())
+        }
     }
 }
 // impl core for UcPackError {}
